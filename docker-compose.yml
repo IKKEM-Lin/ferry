@@ -41,6 +41,7 @@ services:
     volumes:
       - '/etc/localtime:/etc/localtime:ro'
       - './config:/opt/workflow/ferry/config'
+      - './static/web:/opt/workflow/ferry_web/web'
     logging:
       driver: json-file
       options:
