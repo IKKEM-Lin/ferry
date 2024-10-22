@@ -568,11 +568,20 @@ func (h *Handle) HandleWorkOrder(
 						}
 					}
 
+					targetAssignValue, assignValueExists := h.targetStateValue["assignValue"]
+					if !assignValueExists {
+						targetAssignValue = []int{}
+					}
+					targetAssignType, assignTypeExists := h.targetStateValue["assignType"]
+					if !assignTypeExists {
+						targetAssignType = ""
+					}
+
 					h.updateValue["state"] = []map[string]interface{}{{
 						"id":             h.targetStateValue["id"].(string),
 						"label":          h.targetStateValue["label"],
-						"processor":      h.targetStateValue["assignValue"],
-						"process_method": h.targetStateValue["assignType"],
+						"processor":      targetAssignValue,
+						"process_method": targetAssignType,
 					}}
 					err = h.commonProcessing(c)
 					if err != nil {

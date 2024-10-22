@@ -135,10 +135,20 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 							return
 						}
 					}
+
+					targetAssignValue, assignValueExists := nodeValue["assignValue"]
+					if !assignValueExists {
+						targetAssignValue = []int{}
+					}
+					targetAssignType, assignTypeExists := nodeValue["assignType"]
+					if !assignTypeExists {
+						targetAssignType = ""
+					}
+
 					variableValue[0].(map[string]interface{})["id"] = nodeValue["id"].(string)
 					variableValue[0].(map[string]interface{})["label"] = nodeValue["label"]
-					variableValue[0].(map[string]interface{})["processor"] = nodeValue["assignValue"]
-					variableValue[0].(map[string]interface{})["process_method"] = nodeValue["assignType"]
+					variableValue[0].(map[string]interface{})["processor"] = targetAssignValue
+					variableValue[0].(map[string]interface{})["process_method"] = targetAssignType
 					break breakTag
 				}
 			}
