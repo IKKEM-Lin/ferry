@@ -420,6 +420,7 @@ func (h *Handle) HandleWorkOrder(
 		sourceEdges        []map[string]interface{}
 		targetEdges        []map[string]interface{}
 		condExprStatus     bool
+		allConditionsMet   bool
 		relatedPersonValue []byte
 		parallelStatusOk   bool
 		processInfo        process.Info
@@ -548,13 +549,21 @@ func (h *Handle) HandleWorkOrder(
 			if err != nil {
 				return
 			}
+
+			allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
 			for _, condExpr := range edgeCondExpr {
 				// 条件判断
 				condExprStatus, err = h.ConditionalJudgment(condExpr)
 				if err != nil {
 					return
 				}
-				if condExprStatus {
+				if !condExprStatus {
+					allConditionsMet = false // 如果有条件不满足，标志设为 false
+					break // 可以直接跳出循环
+				}
+			}
+
+				if allConditionsMet {
 					// 进行节点跳转
 					h.targetStateValue, err = h.processState.GetNode(edge["target"].(string))
 					if err != nil {
@@ -592,8 +601,7 @@ func (h *Handle) HandleWorkOrder(
 					break breakTag
 				}
 			}
-		}
-		if !condExprStatus {
+		if !allConditionsMet {
 			err = errors.New("所有流转均不符合条件，请确认。")
 			return
 		}

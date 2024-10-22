@@ -30,6 +30,7 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 		handle         Handle
 		processState   ProcessState
 		condExprStatus bool
+		allConditionsMet   bool
 		tpl            []byte
 		sourceEdges    []map[string]interface{}
 		targetEdges    []map[string]interface{}
@@ -116,13 +117,20 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 			if err != nil {
 				return
 			}
+			allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
 			for _, condExpr := range edgeCondExpr {
 				// 条件判断
 				condExprStatus, err = handle.ConditionalJudgment(condExpr)
 				if err != nil {
 					return
 				}
-				if condExprStatus {
+				if !condExprStatus {
+					allConditionsMet = false // 如果有条件不满足，标志设为 false
+					break // 可以直接跳出循环
+				}
+			}
+
+				if allConditionsMet {
 					// 进行节点跳转
 					nodeValue, err = processState.GetNode(edge["target"].(string))
 					if err != nil {
@@ -152,8 +160,7 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 					break breakTag
 				}
 			}
-		}
-		if !condExprStatus {
+		if !allConditionsMet {
 			err = errors.New("所有流转均不符合条件，请确认。")
 			return
 		}
