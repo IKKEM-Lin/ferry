@@ -53,6 +53,7 @@ RUN chmod 755 /opt/workflow/ferry/ferry
 COPY static/web/index.html /opt/workflow/ferry/template/web/
 
 COPY static/web/static/web/ /opt/workflow/ferry/static/web/
+COPY static/template/ /opt/workflow/ferry/static/template/
 # RUN mv /opt/workflow/ferry/static/web/static/web/* /opt/workflow/ferry/static/web/
 RUN rm -rf /opt/workflow/ferry/static/web/static
 
