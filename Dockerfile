@@ -44,7 +44,6 @@ COPY --from=build /opt/workflow/ferry/ferry /opt/workflow/ferry/
 COPY config/ /opt/workflow/ferry/default_config/
 COPY template/ /opt/workflow/ferry/template/
 COPY docker/entrypoint.sh /opt/workflow/ferry/
-RUN mkdir -p logs static/uploadfile static/scripts static/template
 
 RUN chmod 755 /opt/workflow/ferry/entrypoint.sh
 RUN chmod 755 /opt/workflow/ferry/ferry
@@ -53,10 +52,9 @@ RUN chmod 755 /opt/workflow/ferry/ferry
 COPY static/web/index.html /opt/workflow/ferry/template/web/
 
 COPY static/web/static/web/ /opt/workflow/ferry/static/web/
-COPY static/template/ /opt/workflow/ferry/static/template/
 # RUN mv /opt/workflow/ferry/static/web/static/web/* /opt/workflow/ferry/static/web/
 RUN rm -rf /opt/workflow/ferry/static/web/static
 
 EXPOSE 8002
-VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry_web/web" ]
+VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry_web/web", "/opt/workflow/ferry/static/uploadfile", "/opt/workflow/ferry/static/scripts", "/opt/workflow/ferry/static/template" ]
 ENTRYPOINT [ "/opt/workflow/ferry/entrypoint.sh" ]
