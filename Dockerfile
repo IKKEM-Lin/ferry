@@ -6,21 +6,6 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/re
 RUN apk update && \
     apk add --no-cache git && \
     rm -rf /var/cache/apk/* /tmp/* /var/tmp/* $HOME/.cache
-# RUN git clone https://gitee.com/yllan/ferry_web.git
-
-# WORKDIR ferry_web
-
-# RUN npm install -g yarn --registry=https://npm.hzc.pub
-# # RUN npm uninstall node-sass
-# # RUN npm i -D sass 
-# #  --registry=https://npm.hzc.pub
-# RUN yarn
-# RUN echo $'# just a flag\n\
-# ENV = \'production\'\n\n\
-# # base api\n\
-# VUE_APP_BASE_API = \'\''\
-# > .env.production
-# RUN npm run build:prod
 
 FROM golang:1.20 AS build
 
@@ -48,13 +33,6 @@ COPY docker/entrypoint.sh /opt/workflow/ferry/
 RUN chmod 755 /opt/workflow/ferry/entrypoint.sh
 RUN chmod 755 /opt/workflow/ferry/ferry
 
-# COPY --from=web /opt/workflow/ferry/s/web /opt/workflow/ferry/static/web
-COPY static/web/index.html /opt/workflow/ferry/template/web/
-
-COPY static/web/static/web/ /opt/workflow/ferry/static/web/
-# RUN mv /opt/workflow/ferry/static/web/static/web/* /opt/workflow/ferry/static/web/
-RUN rm -rf /opt/workflow/ferry/static/web/static
-
 EXPOSE 8002
-VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry_web/web", "/opt/workflow/ferry/static/uploadfile", "/opt/workflow/ferry/static/scripts", "/opt/workflow/ferry/static/template" ]
+VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry/static" ]
 ENTRYPOINT [ "/opt/workflow/ferry/entrypoint.sh" ]
