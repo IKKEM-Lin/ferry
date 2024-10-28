@@ -27,12 +27,11 @@ WORKDIR /opt/workflow/ferry
 
 COPY --from=build /opt/workflow/ferry/ferry /opt/workflow/ferry/
 COPY config/ /opt/workflow/ferry/default_config/
-COPY template/ /opt/workflow/ferry/template/
 COPY docker/entrypoint.sh /opt/workflow/ferry/
 
 RUN chmod 755 /opt/workflow/ferry/entrypoint.sh
 RUN chmod 755 /opt/workflow/ferry/ferry
 
 EXPOSE 8002
-VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry/static" ]
+VOLUME [ "/opt/workflow/ferry/config", "/opt/workflow/ferry/static", "/opt/workflow/ferry/template" ]
 ENTRYPOINT [ "/opt/workflow/ferry/entrypoint.sh" ]
