@@ -3,6 +3,7 @@ package models
 import (
 	"ferry/global/orm"
 	"ferry/utils"
+	"ferry/tools"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type {{.ClassName}} struct {
 func (e *{{.ClassName}}) Create() ({{.ClassName}}, error) {
 	var doc {{.ClassName}}
 	doc.IsDel = "0"
-	e.CreateTime = time.Now().String()
+	e.CreateTime = time.Now().In(tools.GetDefaultLocation()).String()
 	result := orm.Eloquent.Table("{{.TableName}}").Create(&e)
 	if result.Error != nil {
 		err := result.Error

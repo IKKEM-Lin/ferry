@@ -356,7 +356,7 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 				Title:       workOrderValue.Title,
 				Creator:     userInfo.NickName,
 				Priority:    workOrderValue.Priority,
-				CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+				CreatedAt:   time.Now().In(tools.GetDefaultLocation()).Format("2006-01-02 15:04:05"),
 			}
 			err = bodyData.SendNotify()
 			if err != nil {

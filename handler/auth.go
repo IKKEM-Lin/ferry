@@ -136,8 +136,8 @@ func Authenticator(c *gin.Context) (interface{}, error) {
 			}
 			addUserInfo.RoleId = roleValue.RoleId // 绑定通用角色
 			addUserInfo.Status = "0"
-			addUserInfo.CreatedAt = time.Now()
-			addUserInfo.UpdatedAt = time.Now()
+			addUserInfo.CreatedAt = time.Now().In(tools.GetDefaultLocation())
+			addUserInfo.UpdatedAt = time.Now().In(tools.GetDefaultLocation())
 			if addUserInfo.Sex == "" {
 				addUserInfo.Sex = "0"
 			}
