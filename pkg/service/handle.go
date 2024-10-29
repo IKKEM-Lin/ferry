@@ -314,8 +314,21 @@ func (h *Handle) ConditionalJudgment(condExpr map[string]interface{}) (result bo
 		default:
 			err = errors.New("目前仅支持6种常规判断类型，包括（等于、不等于、大于、大于等于、小于、小于等于）")
 		}
+	case "bool":
+		switch condExpr["sign"] {
+		case "==":
+			if condExprValue.(bool) == condExpr["value"].(bool) {
+				result = true
+			}
+		case "!=":
+			if condExprValue.(bool) != condExpr["value"].(bool) {
+				result = true
+			}
+		default:
+			err = errors.New("布尔类型仅支持2种常规判断类型，包括（等于、不等于）")
+		}
 	default:
-		err = errors.New("条件判断目前仅支持字符串、整型。")
+		err = errors.New("条件判断目前仅支持字符串、布尔、整型。")
 	}
 
 	return
