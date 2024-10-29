@@ -26,8 +26,9 @@ func GetCurrntTime() time.Time {
 	return time.Now().In(GetDefaultLocation())
 }
 
-func GetDefaultLocation() time.Location {
+func GetDefaultLocation() *time.Location {
 	loc, _ := time.LoadLocation("Asia/Shanghai")
+	// loc, _ := time.LoadLocation("Europe/London")
 	return loc
 }
 
