@@ -3,6 +3,7 @@ package middleware
 import (
 	"ferry/pkg/logger"
 	"time"
+	"ferry/tools"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,13 +13,13 @@ func LoggerToFile() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		// 开始时间
-		startTime := time.Now()
+		startTime := time.Now().In(tools.GetDefaultLocation())
 
 		// 处理请求
 		c.Next()
 
 		// 结束时间
-		endTime := time.Now()
+		endTime := time.Now().In(tools.GetDefaultLocation())
 
 		// 执行时间
 		latencyTime := endTime.Sub(startTime)

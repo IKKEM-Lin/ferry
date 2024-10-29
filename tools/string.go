@@ -19,11 +19,16 @@ func StringToInt(e string) (int, error) {
 
 
 func GetCurrntTimeStr() string {
-	return time.Now().Format("2006/01/02 15:04:05")
+	return time.Now().In(GetDefaultLocation()).Format("2006/01/02 15:04:05")
 }
 
 func GetCurrntTime() time.Time {
-	return time.Now()
+	return time.Now().In(GetDefaultLocation())
+}
+
+func GetDefaultLocation() time.Location {
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	return loc
 }
 
 
