@@ -14,13 +14,27 @@
 
 注意：从排他网关引出的所有线条逻辑关系需闭合。
 
-单条线内条件表达式示例：
+单条线内条件表达式示例(支持数值、字符串、布尔值等类型)：
 
 ```
 [
     {"key":"device_cost","sign":"<","value": 200000},
-    {"key":"software_cost","sign":"<","value": 200000},
-    {"key":"database_cost","sign":"<","value": 200000},
-    {"key":"other_cost","sign":"<","value": 200000}
+    {"key":"software_cost","sign":">","value": 200000},
+    {"key":"test1_cost","sign":"==","value": 200000},
+    {"key":"test2_cost","sign":"!=","value": 200000},
+    {"key":"database_cost","sign":"<=","value": 200000},
+    {"key":"other_cost","sign":">=","value": 200000}
 ]
 ```
+
+
+**如何用xtrabackup恢复数据库数据**
+假定已有数据库xtrabackup备份文件夹./data，则：
+```
+docker pull percona/percona-xtrabackup
+
+docker run --rm  -v ./data:/backup -v ./mysql/db:/var/lib/mysql percona/percona-xtrabackup xtrabackup  --prepare --target-dir=/backup
+
+docker run --rm  -v ./data:/backup -v ./mysql/db:/var/lib/mysql percona/percona-xtrabackup xtrabackup  --copy-back --target-dir=/backup
+```
+务必注意./mysql/db必须开放w权限，最好是在docker-compose运行前就建好对应文件夹
