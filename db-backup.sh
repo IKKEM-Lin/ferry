@@ -1,4 +1,23 @@
 #!/bin/bash
+
+# Backup the database using xtrabackup
+# In docker-compose.yml, add the following service:
+#
+# version: '3'
+# services:
+#
+#   mysql_backup:
+#     image: perconalab/percona-xtrabackup:8.4.0-1
+#     container_name: mysql_backup
+#     volumes:
+#       - './mysql/db:/var/lib/mysql'
+#       - './backup:/tmp/backup'
+#     depends_on:
+#       - ferry_mysql
+#
+# add this script to crontab to run daily
+# 5 5 * * * DB_PASSWORD=your_db_password /path/to/db-backup.sh
+
 cd $(dirname "$0")
 set -e
 
