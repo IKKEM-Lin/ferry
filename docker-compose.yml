@@ -1,6 +1,15 @@
 version: '3'
 services:
 
+  mysql_backup:
+    image: perconalab/percona-xtrabackup:8.4.0-1
+    container_name: mysql_backup
+    volumes:
+      - './mysql/db:/var/lib/mysql'
+      - './backup:/tmp/backup'
+    depends_on:
+      - ferry_mysql
+
   ferry_mysql:
     image: mysql:8
     container_name: ferry_mysql
