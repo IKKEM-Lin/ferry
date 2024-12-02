@@ -11,6 +11,7 @@ fi
 TODAY=$(date +%Y-%m-%d)
 
 if [ -f ./backup/$TODAY.tar.xz ]; then
+    echo "Backup already exists for today"
     exit 0
 fi
 
