@@ -12,4 +12,4 @@ redis/data
 data/
 needinit
 mysql/
-config/setting.yml
+config/settings.yml
