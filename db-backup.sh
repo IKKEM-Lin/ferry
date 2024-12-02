@@ -9,23 +9,22 @@ fi
 
 
 TODAY=$(date +%Y-%m-%d)
-BACKUP_DIR=/tmp/backup/$TODAY
+
+if [ -f ./backup/$TODAY.tar.xz ]; then
+    exit 0
+fi
+
 
 docker compose run -T -u 999 mysql_backup bash <<EOF
 set -e
 
-if [ -d "$BACKUP_DIR" ]; then
-    echo "The directory $BACKUP_DIR already exists. Exiting."
-    exit 0
-fi
-
-mkdir -p $BACKUP_DIR
-cd $BACKUP_DIR
-xtrabackup --backup --host=ferry_mysql --target-dir=$BACKUP_DIR --datadir=/var/lib/mysql --user=root --password=$DB_PASSWORD
+mkdir -p /tmp/backup/data
+cd /tmp/backup/data
+xtrabackup --backup --host=ferry_mysql --target-dir=./ --datadir=/var/lib/mysql --user=root --password=$DB_PASSWORD
 
 tar -cf ../$TODAY.tar .
 chmod 666 ../$TODAY.tar
-( cd .. && rm -rf $BACKUP_DIR )
+rm -rf /tmp/backup/data
 EOF
 
 ( cd ./backup && xz -z $TODAY.tar )
