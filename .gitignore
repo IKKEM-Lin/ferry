@@ -13,3 +13,4 @@ data/
 needinit
 mysql/
 config/settings.yml
+backup/
