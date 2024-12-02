@@ -33,9 +33,7 @@ if [ -z "$DB_PASSWORD" ]; then
     echo  # Move to a new line after reading the password
 fi
 
-docker compose run -T -u 999 mysql_backup bash <<EOF
-set -e
-
+docker compose run -T -u 999 mysql_backup bash -e <<EOF
 mkdir -p /tmp/backup/data
 cd /tmp/backup/data
 xtrabackup --backup --host=ferry_mysql --target-dir=./ --datadir=/var/lib/mysql --user=root --password=$DB_PASSWORD
