@@ -327,8 +327,50 @@ func (h *Handle) ConditionalJudgment(condExpr map[string]interface{}) (result bo
 		default:
 			err = errors.New("布尔类型仅支持2种常规判断类型，包括（等于、不等于）")
 		}
+	case "[]interface {}":
+		switch condExpr["sign"] {
+		case "intersect":
+			// condExpr["value"] 必须为数组
+			values, ok := condExpr["value"].([]interface{})
+			if !ok {
+				err = errors.New("intersect 操作的 value 必须为数组")
+				break
+			}
+			// condExprValue 也是数组，判断是否有交集
+			for _, v := range condExprValue.([]interface{}) {
+				for _, vv := range values {
+					if v == vv {
+						result = true
+						break
+					}
+				}
+				if result {
+					break
+				}
+			}
+		case "disjoint":
+			values, ok := condExpr["value"].([]interface{})
+			if !ok {
+				err = errors.New("disjoint 操作的 value 必须为数组")
+				break
+			}
+			result = true
+			for _, v := range condExprValue.([]interface{}) {
+				for _, vv := range values {
+					if v == vv {
+						result = false
+						break
+					}
+				}
+				if !result {
+					break
+				}
+			}
+		default:
+			err = errors.New("数组类型仅支持 intersect 和 disjoint 判断")
+		}
 	default:
-		err = errors.New("条件判断目前仅支持字符串、布尔、整型。")
+		err = errors.New("条件判断目前仅支持字符串、布尔、整型、字符串数组。")
 	}
 
 	return
