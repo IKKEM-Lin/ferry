@@ -916,27 +916,29 @@ func (h *Handle) HandleWorkOrder(
 	// 发送通知
 	if len(noticeList) > 0 {
 		stateList := make([]interface{}, 0)
-		for _, v := range h.updateValue["state"].([]map[string]interface{}) {
-			stateList = append(stateList, v)
-		}
-		sendToUserList, err = GetPrincipalUserInfo(stateList, h.workOrderDetails.Creator)
-		if err != nil {
-			return
-		}
-
-		bodyData.SendTo = map[string]interface{}{
-			"userList": sendToUserList,
-		}
-		bodyData.Subject = sendSubject
-		bodyData.Description = sendDescription
-
-		// 发送通知
-		go func(bodyData notify.BodyData) {
-			err = bodyData.SendNotify()
+		if h.updateValue["state"] != nil {
+			for _, v := range h.updateValue["state"].([]map[string]interface{}) {
+				stateList = append(stateList, v)
+			}
+			sendToUserList, err = GetPrincipalUserInfo(stateList, h.workOrderDetails.Creator)
 			if err != nil {
 				return
 			}
-		}(bodyData)
+
+			bodyData.SendTo = map[string]interface{}{
+				"userList": sendToUserList,
+			}
+			bodyData.Subject = sendSubject
+			bodyData.Description = sendDescription
+
+			// 发送通知
+			go func(bodyData notify.BodyData) {
+				err = bodyData.SendNotify()
+				if err != nil {
+					return
+				}
+			}(bodyData)
+		}
 	}
 
 	if isExecTask {
