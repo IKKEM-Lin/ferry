@@ -58,6 +58,8 @@ func setup() {
 	database.Setup()
 	// 3. 启动异步任务队列
 	go task.Start()
+	// 4. 初始化并启动定时任务
+	go task.InitCron()
 
 }
 

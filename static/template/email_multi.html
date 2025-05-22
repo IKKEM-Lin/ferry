@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>厦门智储大装置研究院</title>
+</head>
+<body>
+    <br>
+    {{ .Description }}：
+    <br>
+    <br>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>工单ID</th>
+            <th>标题</th>
+            <th>优先级</th>
+            <th>创建人</th>
+            <th>创建时间</th>
+        </tr>
+        {{range .Tickets}}
+        <tr>
+            <td>{{.Id}}</td>
+            <td>{{.Title}}</td>
+            <td>{{.PriorityValue}}</td>
+            <td>{{.Creator}}</td>
+            <td>{{.CreatedAt}}</td>
+        </tr>
+        {{end}}
+    </table>
+
+    <br>
+    <a href="{{ .Domain }}/#/process/upcoming" target="_blank">点击此处跳转到待处理工单</a>
+</body>
+<style>
+    table {
+        border: 1px solid #ccc;
+        border-collapse:collapse;
+    }
+    td {
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #ccc;
+    }
+</style>
+</html>

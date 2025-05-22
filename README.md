@@ -7,6 +7,19 @@
 
 ```config/settings.yml```中改动 domain（用于邮件内跳转） 及 email 相关配置，注意邮箱需开启smtp服务
 
+**如何配置工单超时通知**
+
+系统支持定时检查超时工单（等待创建者处理）并自动发送邮件通知给创建者。在`config/settings.yml`中配置：
+
+```yaml
+settings:
+  workorder:
+    notify:
+      enable: true                        # 是否启用工单超时通知
+      cron: "0 0 10 * * 3"                # 定时任务表达式，默认每周三中午10点
+      timeout_days: 3                     # 超过多少天未处理的工单视为超时
+      manager_email: example@email.com    # 超时订单管理员的邮箱
+```
 
 **排他网关的逻辑处理**
 
