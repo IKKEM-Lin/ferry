@@ -327,6 +327,13 @@ func InversionWorkOrder(c *gin.Context) {
 		}
 	}
 
+	historyRemark := ""
+	if params.Remarks != "" {
+		historyRemark = params.Remarks
+	} else {
+		historyRemark = fmt.Sprintf("此阶段负责人已转交给《%v》", userInfo.NickName)
+	}
+
 	// 添加转交历史
 	tx.Create(&process.CirculationHistory{
 		Title:        workOrderInfo.Title,
@@ -335,7 +342,7 @@ func InversionWorkOrder(c *gin.Context) {
 		Circulation:  "转交",
 		Processor:    currentUserInfo.NickName,
 		ProcessorId:  tools.GetUserId(c),
-		Remarks:      fmt.Sprintf("此阶段负责人已转交给《%v》", userInfo.NickName),
+		Remarks:      historyRemark,
 		Status:       2, // 其他
 		CostDuration: costDurationValue,
 	})
