@@ -582,41 +582,67 @@ func (h *Handle) HandleWorkOrder(
 		"related_person": relatedPersonValue,
 	}
 
-	// 开启事务
-	h.tx = orm.Eloquent.Begin()
-
-	stateValue := map[string]interface{}{
-		"label": h.targetStateValue["label"].(string),
-		"id":    h.targetStateValue["id"].(string),
-	}
-
-	sourceEdges, err = h.processState.GetEdge(h.targetStateValue["id"].(string), "source")
+	// 获取当前用户信息
+	err = orm.Eloquent.Model(&currentUserInfo).
+		Where("user_id = ?", tools.GetUserId(c)).
+		Find(&currentUserInfo).Error
 	if err != nil {
 		return
 	}
 
-	switch h.targetStateValue["clazz"] {
-	case "exclusiveGateway": // 排他网关
-	breakTag:
-		for _, edge := range sourceEdges {
-			edgeCondExpr := make([]map[string]interface{}, 0)
-			err = json.Unmarshal([]byte(edge["conditionExpression"].(string)), &edgeCondExpr)
-			if err != nil {
-				return
-			}
+	// 开启事务
+	h.tx = orm.Eloquent.Begin()
 
-			allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
-			for _, condExpr := range edgeCondExpr {
-				// 条件判断
-				condExprStatus, err = h.ConditionalJudgment(condExpr)
+	// 获取用户的上级
+	directLeaderId := getDirectLeaderId(currentUserInfo)
+	if directLeaderId != -1 && h.stateValue["clazz"] == "start" {
+		targetAssignValue := []int{}
+		targetAssignValue = append(targetAssignValue, directLeaderId)
+		stateValue := map[string]interface{}{
+			"label":          h.stateValue["label"].(string),
+			"id":             h.stateValue["id"].(string),
+			"processor":      targetAssignValue,
+			"process_method": "person",
+		}
+		h.updateValue["state"] = []map[string]interface{}{stateValue}
+		h.targetStateValue = h.stateValue
+		err = h.circulation()
+		if err != nil {
+			return
+		}
+	} else {
+		stateValue := map[string]interface{}{
+			"label": h.targetStateValue["label"].(string),
+			"id":    h.targetStateValue["id"].(string),
+		}
+
+		sourceEdges, err = h.processState.GetEdge(h.targetStateValue["id"].(string), "source")
+		if err != nil {
+			return
+		}
+
+		switch h.targetStateValue["clazz"] {
+		case "exclusiveGateway": // 排他网关
+		breakTag:
+			for _, edge := range sourceEdges {
+				edgeCondExpr := make([]map[string]interface{}, 0)
+				err = json.Unmarshal([]byte(edge["conditionExpression"].(string)), &edgeCondExpr)
 				if err != nil {
 					return
 				}
-				if !condExprStatus {
-					allConditionsMet = false // 如果有条件不满足，标志设为 false
-					break // 可以直接跳出循环
+
+				allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
+				for _, condExpr := range edgeCondExpr {
+					// 条件判断
+					condExprStatus, err = h.ConditionalJudgment(condExpr)
+					if err != nil {
+						return
+					}
+					if !condExprStatus {
+						allConditionsMet = false // 如果有条件不满足，标志设为 false
+						break                    // 可以直接跳出循环
+					}
 				}
-			}
 
 				if allConditionsMet {
 					// 进行节点跳转
@@ -656,124 +682,125 @@ func (h *Handle) HandleWorkOrder(
 					break breakTag
 				}
 			}
-		if !allConditionsMet {
-			err = errors.New("所有流转均不符合条件，请确认。")
-			return
-		}
-	case "parallelGateway": // 并行/聚合网关
-		// 入口，判断
-		targetEdges, err = h.processState.GetEdge(h.targetStateValue["id"].(string), "target")
-		if err != nil {
-			err = fmt.Errorf("查询流转信息失败，%v", err.Error())
-			return
-		}
-
-		if len(sourceEdges) > 0 {
-			h.targetStateValue, err = h.processState.GetNode(sourceEdges[0]["target"].(string))
-			if err != nil {
+			if !allConditionsMet {
+				err = errors.New("所有流转均不符合条件，请确认。")
 				return
 			}
-		} else {
-			err = errors.New("并行网关流程不正确")
-			return
-		}
+		case "parallelGateway": // 并行/聚合网关
+			// 入口，判断
+			targetEdges, err = h.processState.GetEdge(h.targetStateValue["id"].(string), "target")
+			if err != nil {
+				err = fmt.Errorf("查询流转信息失败，%v", err.Error())
+				return
+			}
 
-		if len(sourceEdges) > 1 && len(targetEdges) == 1 {
-			// 入口
-			h.updateValue["state"] = make([]map[string]interface{}, 0)
-			for _, edge := range sourceEdges {
-				targetStateValue, err := h.processState.GetNode(edge["target"].(string))
+			if len(sourceEdges) > 0 {
+				h.targetStateValue, err = h.processState.GetNode(sourceEdges[0]["target"].(string))
 				if err != nil {
-					return err
+					return
 				}
-				h.updateValue["state"] = append(h.updateValue["state"].([]map[string]interface{}), map[string]interface{}{
-					"id":             edge["target"].(string),
-					"label":          targetStateValue["label"],
-					"processor":      targetStateValue["assignValue"],
-					"process_method": targetStateValue["assignType"],
-				})
-			}
-			err = h.circulation()
-			if err != nil {
-				err = fmt.Errorf("工单跳转失败，%v", err.Error())
+			} else {
+				err = errors.New("并行网关流程不正确")
 				return
 			}
-		} else if len(sourceEdges) == 1 && len(targetEdges) > 1 {
-			// 出口
-			parallelStatusOk, err = h.completeAllParallel(sourceEdges[0]["target"].(string))
-			if err != nil {
-				err = fmt.Errorf("并行检测失败，%v", err.Error())
-				return
-			}
-			if parallelStatusOk {
-				h.endHistory = true
-				endAssignValue, ok := h.targetStateValue["assignValue"]
-				if !ok {
-					endAssignValue = []int{}
-				}
 
-				endAssignType, ok := h.targetStateValue["assignType"]
-				if !ok {
-					endAssignType = ""
+			if len(sourceEdges) > 1 && len(targetEdges) == 1 {
+				// 入口
+				h.updateValue["state"] = make([]map[string]interface{}, 0)
+				for _, edge := range sourceEdges {
+					targetStateValue, err := h.processState.GetNode(edge["target"].(string))
+					if err != nil {
+						return err
+					}
+					h.updateValue["state"] = append(h.updateValue["state"].([]map[string]interface{}), map[string]interface{}{
+						"id":             edge["target"].(string),
+						"label":          targetStateValue["label"],
+						"processor":      targetStateValue["assignValue"],
+						"process_method": targetStateValue["assignType"],
+					})
 				}
-
-				h.updateValue["state"] = []map[string]interface{}{{
-					"id":             h.targetStateValue["id"].(string),
-					"label":          h.targetStateValue["label"],
-					"processor":      endAssignValue,
-					"process_method": endAssignType,
-				}}
 				err = h.circulation()
 				if err != nil {
 					err = fmt.Errorf("工单跳转失败，%v", err.Error())
 					return
 				}
-			} else {
-				h.endHistory = false
-			}
+			} else if len(sourceEdges) == 1 && len(targetEdges) > 1 {
+				// 出口
+				parallelStatusOk, err = h.completeAllParallel(sourceEdges[0]["target"].(string))
+				if err != nil {
+					err = fmt.Errorf("并行检测失败，%v", err.Error())
+					return
+				}
+				if parallelStatusOk {
+					h.endHistory = true
+					endAssignValue, ok := h.targetStateValue["assignValue"]
+					if !ok {
+						endAssignValue = []int{}
+					}
 
-		} else {
-			err = errors.New("并行网关流程不正确")
+					endAssignType, ok := h.targetStateValue["assignType"]
+					if !ok {
+						endAssignType = ""
+					}
+
+					h.updateValue["state"] = []map[string]interface{}{{
+						"id":             h.targetStateValue["id"].(string),
+						"label":          h.targetStateValue["label"],
+						"processor":      endAssignValue,
+						"process_method": endAssignType,
+					}}
+					err = h.circulation()
+					if err != nil {
+						err = fmt.Errorf("工单跳转失败，%v", err.Error())
+						return
+					}
+				} else {
+					h.endHistory = false
+				}
+
+			} else {
+				err = errors.New("并行网关流程不正确")
+				return
+			}
+		// 包容网关
+		case "inclusiveGateway":
 			return
-		}
-	// 包容网关
-	case "inclusiveGateway":
-		return
-	case "start":
-		stateValue["processor"] = []int{h.workOrderDetails.Creator}
-		stateValue["process_method"] = "person"
-		h.updateValue["state"] = []map[string]interface{}{stateValue}
-		err = h.circulation()
-		if err != nil {
-			return
-		}
-	case "userTask":
-		stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
-		stateValue["process_method"] = h.targetStateValue["assignType"].(string)
-		h.updateValue["state"] = []map[string]interface{}{stateValue}
-		err = h.commonProcessing(c)
-		if err != nil {
-			return
-		}
-	case "receiveTask":
-		stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
-		stateValue["process_method"] = h.targetStateValue["assignType"].(string)
-		h.updateValue["state"] = []map[string]interface{}{stateValue}
-		err = h.commonProcessing(c)
-		if err != nil {
-			return
-		}
-	case "scriptTask":
-		stateValue["processor"] = []int{}
-		stateValue["process_method"] = ""
-		h.updateValue["state"] = []map[string]interface{}{stateValue}
-	case "end":
-		stateValue["processor"] = []int{}
-		stateValue["process_method"] = ""
-		h.updateValue["state"] = []map[string]interface{}{stateValue}
-		err = h.commonProcessing(c)
-		if err != nil {
-			return
+		case "start":
+			stateValue["processor"] = []int{h.workOrderDetails.Creator}
+			stateValue["process_method"] = "person"
+			h.updateValue["state"] = []map[string]interface{}{stateValue}
+			err = h.circulation()
+			if err != nil {
+				return
+			}
+		case "userTask":
+			stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
+			stateValue["process_method"] = h.targetStateValue["assignType"].(string)
+			h.updateValue["state"] = []map[string]interface{}{stateValue}
+			err = h.commonProcessing(c)
+			if err != nil {
+				return
+			}
+		case "receiveTask":
+			stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
+			stateValue["process_method"] = h.targetStateValue["assignType"].(string)
+			h.updateValue["state"] = []map[string]interface{}{stateValue}
+			err = h.commonProcessing(c)
+			if err != nil {
+				return
+			}
+		case "scriptTask":
+			stateValue["processor"] = []int{}
+			stateValue["process_method"] = ""
+			h.updateValue["state"] = []map[string]interface{}{stateValue}
+		case "end":
+			stateValue["processor"] = []int{}
+			stateValue["process_method"] = ""
+			h.updateValue["state"] = []map[string]interface{}{stateValue}
+			err = h.commonProcessing(c)
+			if err != nil {
+				return
+			}
 		}
 	}
 
@@ -844,14 +871,6 @@ func (h *Handle) HandleWorkOrder(
 			costDuration := time.Since(t.CreatedAt.Time)
 			costDurationValue = int64(costDuration) / 1000 / 1000 / 1000
 		}
-	}
-
-	// 获取当前用户信息
-	err = orm.Eloquent.Model(&currentUserInfo).
-		Where("user_id = ?", tools.GetUserId(c)).
-		Find(&currentUserInfo).Error
-	if err != nil {
-		return
 	}
 
 	cirHistoryData = process.CirculationHistory{

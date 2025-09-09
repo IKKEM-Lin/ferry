@@ -20,22 +20,22 @@ import (
 
 func CreateWorkOrder(c *gin.Context) (err error) {
 	var (
-		taskList       []string
-		stateList      []interface{}
-		userInfo       system.SysUser
-		variableValue  []interface{}
-		processValue   process.Info
-		sendToUserList []system.SysUser
-		noticeList     []int
-		handle         Handle
-		processState   ProcessState
-		condExprStatus bool
-		allConditionsMet   bool
-		tpl            []byte
-		sourceEdges    []map[string]interface{}
-		targetEdges    []map[string]interface{}
-		currentNode    map[string]interface{}
-		workOrderValue struct {
+		taskList         []string
+		stateList        []interface{}
+		userInfo         system.SysUser
+		variableValue    []interface{}
+		processValue     process.Info
+		sendToUserList   []system.SysUser
+		noticeList       []int
+		handle           Handle
+		processState     ProcessState
+		condExprStatus   bool
+		allConditionsMet bool
+		tpl              []byte
+		sourceEdges      []map[string]interface{}
+		targetEdges      []map[string]interface{}
+		currentNode      map[string]interface{}
+		workOrderValue   struct {
 			process.WorkOrderInfo
 			Tpls        map[string][]interface{} `json:"tpls"`
 			SourceState string                   `json:"source_state"`
@@ -75,6 +75,19 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 	// 创建工单数据
 	tx := orm.Eloquent.Begin()
 
+	// 获取当前用户信息
+	err = tx.Model(&system.SysUser{}).Where("user_id = ?", tools.GetUserId(c)).Find(&userInfo).Error
+	if err != nil {
+		tx.Rollback()
+		err = fmt.Errorf("查询用户信息失败，%v", err.Error())
+		return
+	}
+
+	nameValue := userInfo.NickName
+	if nameValue == "" {
+		nameValue = userInfo.Username
+	}
+
 	// 查询流程信息
 	err = tx.Model(&processValue).Where("id = ?", workOrderValue.Process).Find(&processValue).Error
 	if err != nil {
@@ -94,41 +107,58 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 		return
 	}
 
-	for _, v := range workOrderValue.Tpls["form_data"] {
-		tpl, err = json.Marshal(v)
-		if err != nil {
-			return
-		}
-		handle.WorkOrderData = append(handle.WorkOrderData, tpl)
-	}
-
-	switch nodeValue["clazz"] {
-	// 排他网关
-	case "exclusiveGateway":
-		var sourceEdges []map[string]interface{}
-		sourceEdges, err = processState.GetEdge(nodeValue["id"].(string), "source")
-		if err != nil {
-			return
-		}
-	breakTag:
-		for _, edge := range sourceEdges {
-			edgeCondExpr := make([]map[string]interface{}, 0)
-			err = json.Unmarshal([]byte(edge["conditionExpression"].(string)), &edgeCondExpr)
+	// 获取用户的上级
+	directLeaderId := getDirectLeaderId(userInfo)
+	// reUserId := regexp.MustCompile(`DirectLeader: \d+`)
+	// userIdStr := reUserId.FindString(userInfo.Remark)
+	// if userIdStr != "" {
+	// 	userIdStr = strings.Split(userIdStr, ": ")[1]
+	// 	val, _ := strconv.Atoi(userIdStr)
+	// 	directLeaderId = val
+	// }
+	if directLeaderId != -1 {
+		targetAssignValue := []int{}
+		targetAssignValue = append(targetAssignValue, directLeaderId)
+		variableValue[0].(map[string]interface{})["id"] = currentNode["id"].(string)
+		variableValue[0].(map[string]interface{})["label"] = currentNode["label"]
+		variableValue[0].(map[string]interface{})["processor"] = targetAssignValue
+		variableValue[0].(map[string]interface{})["process_method"] = "person"
+	} else {
+		for _, v := range workOrderValue.Tpls["form_data"] {
+			tpl, err = json.Marshal(v)
 			if err != nil {
 				return
 			}
-			allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
-			for _, condExpr := range edgeCondExpr {
-				// 条件判断
-				condExprStatus, err = handle.ConditionalJudgment(condExpr)
+			handle.WorkOrderData = append(handle.WorkOrderData, tpl)
+		}
+
+		switch nodeValue["clazz"] {
+		// 排他网关
+		case "exclusiveGateway":
+			var sourceEdges []map[string]interface{}
+			sourceEdges, err = processState.GetEdge(nodeValue["id"].(string), "source")
+			if err != nil {
+				return
+			}
+		breakTag:
+			for _, edge := range sourceEdges {
+				edgeCondExpr := make([]map[string]interface{}, 0)
+				err = json.Unmarshal([]byte(edge["conditionExpression"].(string)), &edgeCondExpr)
 				if err != nil {
 					return
 				}
-				if !condExprStatus {
-					allConditionsMet = false // 如果有条件不满足，标志设为 false
-					break // 可以直接跳出循环
+				allConditionsMet = true // 添加一个标志来跟踪所有条件是否满足
+				for _, condExpr := range edgeCondExpr {
+					// 条件判断
+					condExprStatus, err = handle.ConditionalJudgment(condExpr)
+					if err != nil {
+						return
+					}
+					if !condExprStatus {
+						allConditionsMet = false // 如果有条件不满足，标志设为 false
+						break                    // 可以直接跳出循环
+					}
 				}
-			}
 
 				if allConditionsMet {
 					// 进行节点跳转
@@ -160,52 +190,53 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 					break breakTag
 				}
 			}
-		if !allConditionsMet {
-			err = errors.New("所有流转均不符合条件，请确认。")
-			return
-		}
-	case "parallelGateway":
-		// 入口，判断
-		sourceEdges, err = processState.GetEdge(nodeValue["id"].(string), "source")
-		if err != nil {
-			err = fmt.Errorf("查询流转信息失败，%v", err.Error())
-			return
-		}
-
-		targetEdges, err = processState.GetEdge(nodeValue["id"].(string), "target")
-		if err != nil {
-			err = fmt.Errorf("查询流转信息失败，%v", err.Error())
-			return
-		}
-
-		if len(sourceEdges) > 0 {
-			nodeValue, err = processState.GetNode(sourceEdges[0]["target"].(string))
-			if err != nil {
+			if !allConditionsMet {
+				err = errors.New("所有流转均不符合条件，请确认。")
 				return
 			}
-		} else {
-			err = errors.New("并行网关流程不正确")
-			return
-		}
-
-		if len(sourceEdges) > 1 && len(targetEdges) == 1 {
-			// 入口
-			variableValue = []interface{}{}
-			for _, edge := range sourceEdges {
-				targetStateValue, err := processState.GetNode(edge["target"].(string))
-				if err != nil {
-					return err
-				}
-				variableValue = append(variableValue, map[string]interface{}{
-					"id":             edge["target"].(string),
-					"label":          targetStateValue["label"],
-					"processor":      targetStateValue["assignValue"],
-					"process_method": targetStateValue["assignType"],
-				})
+		case "parallelGateway":
+			// 入口，判断
+			sourceEdges, err = processState.GetEdge(nodeValue["id"].(string), "source")
+			if err != nil {
+				err = fmt.Errorf("查询流转信息失败，%v", err.Error())
+				return
 			}
-		} else {
-			err = errors.New("并行网关流程配置不正确")
-			return
+
+			targetEdges, err = processState.GetEdge(nodeValue["id"].(string), "target")
+			if err != nil {
+				err = fmt.Errorf("查询流转信息失败，%v", err.Error())
+				return
+			}
+
+			if len(sourceEdges) > 0 {
+				nodeValue, err = processState.GetNode(sourceEdges[0]["target"].(string))
+				if err != nil {
+					return
+				}
+			} else {
+				err = errors.New("并行网关流程不正确")
+				return
+			}
+
+			if len(sourceEdges) > 1 && len(targetEdges) == 1 {
+				// 入口
+				variableValue = []interface{}{}
+				for _, edge := range sourceEdges {
+					targetStateValue, err := processState.GetNode(edge["target"].(string))
+					if err != nil {
+						return err
+					}
+					variableValue = append(variableValue, map[string]interface{}{
+						"id":             edge["target"].(string),
+						"label":          targetStateValue["label"],
+						"processor":      targetStateValue["assignValue"],
+						"process_method": targetStateValue["assignType"],
+					})
+				}
+			} else {
+				err = errors.New("并行网关流程配置不正确")
+				return
+			}
 		}
 	}
 
@@ -267,19 +298,6 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 			err = fmt.Errorf("创建工单模版关联数据失败，%v", err.Error())
 			return
 		}
-	}
-
-	// 获取当前用户信息
-	err = tx.Model(&system.SysUser{}).Where("user_id = ?", tools.GetUserId(c)).Find(&userInfo).Error
-	if err != nil {
-		tx.Rollback()
-		err = fmt.Errorf("查询用户信息失败，%v", err.Error())
-		return
-	}
-
-	nameValue := userInfo.NickName
-	if nameValue == "" {
-		nameValue = userInfo.Username
 	}
 
 	// 创建历史记录
