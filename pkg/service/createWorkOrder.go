@@ -107,6 +107,21 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 		return
 	}
 
+	// 获取自选的审批流, 可能为空列表
+	var tplsData []map[string]interface{}
+	for _, itemData := range workOrderValue.Tpls["form_data"] {
+		validateItemData, ok := itemData.(map[string]interface{})
+		if ok {
+			tplsData = append(tplsData, validateItemData)
+		}
+	}
+	leaderIds := getDeptLeaderIds(tplsData)
+	firstLeaderId := 0
+	if len(leaderIds) > 0 {
+		firstLeaderId = leaderIds[0]
+		variableValue[0].(map[string]interface{})["first_leader"] = firstLeaderId
+	}
+
 	// 获取用户的上级
 	directLeaderId := getDirectLeaderId(userInfo)
 	// reUserId := regexp.MustCompile(`DirectLeader: \d+`)
@@ -231,6 +246,7 @@ func CreateWorkOrder(c *gin.Context) (err error) {
 						"label":          targetStateValue["label"],
 						"processor":      targetStateValue["assignValue"],
 						"process_method": targetStateValue["assignType"],
+						"first_leader":   firstLeaderId,
 					})
 				}
 			} else {

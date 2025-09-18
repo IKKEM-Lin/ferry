@@ -593,6 +593,20 @@ func (h *Handle) HandleWorkOrder(
 	// 开启事务
 	h.tx = orm.Eloquent.Begin()
 
+	// 获取自选的审批流, 可能为空列表
+	var tplsData []map[string]interface{}
+	for _, itemData := range tpls {
+		validateItemData, ok := itemData["tplValue"].(map[string]interface{})
+		if ok {
+			tplsData = append(tplsData, validateItemData)
+		}
+	}
+	leaderIds := getDeptLeaderIds(tplsData)
+	firstLeaderId := 0
+	if len(leaderIds) > 0 {
+		firstLeaderId = leaderIds[0]
+	}
+
 	// 获取用户的上级
 	directLeaderId := getDirectLeaderId(currentUserInfo)
 	if directLeaderId != -1 && h.stateValue["clazz"] == "start" {
@@ -672,6 +686,7 @@ func (h *Handle) HandleWorkOrder(
 						"label":          h.targetStateValue["label"],
 						"processor":      targetAssignValue,
 						"process_method": targetAssignType,
+						"first_leader":   firstLeaderId,
 					}}
 					err = h.commonProcessing(c)
 					if err != nil {
@@ -717,6 +732,7 @@ func (h *Handle) HandleWorkOrder(
 						"label":          targetStateValue["label"],
 						"processor":      targetStateValue["assignValue"],
 						"process_method": targetStateValue["assignType"],
+						"first_leader":   firstLeaderId,
 					})
 				}
 				err = h.circulation()
@@ -748,6 +764,7 @@ func (h *Handle) HandleWorkOrder(
 						"label":          h.targetStateValue["label"],
 						"processor":      endAssignValue,
 						"process_method": endAssignType,
+						"first_leader":   firstLeaderId,
 					}}
 					err = h.circulation()
 					if err != nil {
@@ -776,6 +793,7 @@ func (h *Handle) HandleWorkOrder(
 		case "userTask":
 			stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
 			stateValue["process_method"] = h.targetStateValue["assignType"].(string)
+			stateValue["first_leader"] = firstLeaderId
 			h.updateValue["state"] = []map[string]interface{}{stateValue}
 			err = h.commonProcessing(c)
 			if err != nil {
@@ -784,6 +802,7 @@ func (h *Handle) HandleWorkOrder(
 		case "receiveTask":
 			stateValue["processor"] = h.targetStateValue["assignValue"].([]interface{})
 			stateValue["process_method"] = h.targetStateValue["assignType"].(string)
+			stateValue["first_leader"] = firstLeaderId
 			h.updateValue["state"] = []map[string]interface{}{stateValue}
 			err = h.commonProcessing(c)
 			if err != nil {

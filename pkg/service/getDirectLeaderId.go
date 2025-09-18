@@ -19,3 +19,20 @@ func getDirectLeaderId(userInfo system.SysUser) (directLeaderId int) {
 	}
 	return
 }
+
+func getDeptLeaderIds(tpls []map[string]interface{}) (leaderIds []int) {
+	for _, t := range tpls {
+		selected, ok := t["__processor__"].([]interface{})
+		if !ok {
+			return
+		}
+
+		for _, v := range selected {
+			value := int(v.(float64))
+			if value > 0 {
+				leaderIds = append(leaderIds, value)
+			}
+		}
+	}
+	return
+}

@@ -36,6 +36,25 @@ func GetVariableValue(stateList []interface{}, creator int) (err error) {
 
 					// 3. 替换处理人信息
 					stateItem.(map[string]interface{})["processor"].([]interface{})[processorIndex] = deptInfo.Leader
+				} else if int(processor.(float64)) == 3 {
+					firstLeaderId, ok := stateItem.(map[string]interface{})["first_leader"].(int)
+					if ok && firstLeaderId > 0 {
+						stateItem.(map[string]interface{})["processor"].([]interface{})[processorIndex] = firstLeaderId
+					} else {
+						// 1. 查询用户信息
+						err = orm.Eloquent.Model(&userInfo).Where("user_id = ?", creator).Find(&userInfo).Error
+						if err != nil {
+							return
+						}
+						// 2. 查询部门信息
+						err = orm.Eloquent.Model(&deptInfo).Where("dept_id = ?", userInfo.DeptId).Find(&deptInfo).Error
+						if err != nil {
+							return
+						}
+
+						// 3. 替换处理人信息
+						stateItem.(map[string]interface{})["processor"].([]interface{})[processorIndex] = deptInfo.Leader
+					}
 				}
 			}
 			stateItem.(map[string]interface{})["process_method"] = "person"
