@@ -43,4 +43,11 @@ chmod 666 ../$TODAY.tar
 rm -rf /tmp/backup/data
 EOF
 
-( cd ./backup && xz -z $TODAY.tar )
+pushd ./backup
+xz -z $TODAY.tar
+# Keep only the latest 30 files
+ls -r *.tar.xz | tail -n +31 | xargs -r rm --
+popd
+
+# Sync to remote
+rsync -av ./backup/ ikkem-hpc:./backup/ferry/
