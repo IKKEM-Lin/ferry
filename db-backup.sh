@@ -44,10 +44,11 @@ rm -rf /tmp/backup/data
 EOF
 
 pushd ./backup
-xz -z $TODAY.tar
+xz -c $TODAY.tar > $TODAY.tar.xz && rm $TODAY.tar
 # Keep only the latest 30 files
 ls -r *.tar.xz | tail -n +31 | xargs -r rm --
 popd
 
 # Sync to remote
-rsync -av ./backup/ ikkem-hpc:./backup/ferry/
+rsync -av ./backup/ ikkem-hpc:./backup/ferry/db/
+rsync -av ./static/uploadfile ikkem-hpc:./backup/ferry/uploadfile/

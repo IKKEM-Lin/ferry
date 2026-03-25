@@ -1,4 +1,7 @@
 #!/bin/bash
+# usage:
+# docker exec -i ferry_mysql /bin/bash < fix-upload.sh
+
 set -euo pipefail
 
 # 手动处理
