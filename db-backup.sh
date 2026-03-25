@@ -51,4 +51,4 @@ popd
 
 # Sync to remote
 rsync -av ./backup/ ikkem-hpc:./backup/ferry/db/
-rsync -av ./static/uploadfile ikkem-hpc:./backup/ferry/uploadfile/
+rsync -av ./static/uploadfile/ ikkem-hpc:./backup/ferry/uploadfile/
